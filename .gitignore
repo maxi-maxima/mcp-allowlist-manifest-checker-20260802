@@ -1,0 +1,8 @@
+__pycache__/
+*.pyc
+*.pyo
+*.json
+*.diff
+*.txt
+checkpoint.json
+sample.redacted.txt

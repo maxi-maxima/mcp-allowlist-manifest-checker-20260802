@@ -1,0 +1,10 @@
+[project]
+name = "mcp-allowlist-manifest-checker"
+version = "0.1.0"
+description = "Check MCP-style manifests for unsafe tool grants and path/network overreach."
+readme = "README.md"
+requires-python = ">=3.11"
+license = { file = "LICENSE" }
+
+[tool.setuptools]
+py-modules = ["main"]
