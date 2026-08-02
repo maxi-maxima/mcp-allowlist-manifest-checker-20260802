@@ -16,6 +16,18 @@ MCP 正在变成常见集成层，安全审查需要一个本地、CI、代码�
 python main.py --manifest sample-manifest.json
 ```
 
+JSON 和 TOML manifest 都支持：
+```bash
+python main.py --manifest sample-manifest.toml
+```
+
+如果 CI 需要拒绝“声明了 tools 但没有显式 allowed_tools”的配置，可以开启严格模式：
+```bash
+python main.py --manifest sample-manifest.json --require-allowlist --json
+```
+
+工具条目既可以写成对象（`{"name": "read_file"}`），也可以写成紧凑字符串（`"read_file"`），方便兼容不同风格的 manifest。
+
 ## 示例
 输入：
 ```json

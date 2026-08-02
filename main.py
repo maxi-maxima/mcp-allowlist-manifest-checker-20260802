@@ -23,13 +23,41 @@ def path_is_safe(entry: str) -> bool:
     return ".." not in candidate.parts
 
 
-def check_manifest(manifest: dict[str, Any]) -> list[str]:
+def normalize_tool_name(tool: Any) -> str:
+    if isinstance(tool, str):
+        return tool
+    if isinstance(tool, dict):
+        return str(tool.get("name", ""))
+    return ""
+
+
+def iter_tools(manifest: dict[str, Any]) -> list[dict[str, Any]]:
+    tools = []
+    for raw in manifest.get("tools", []):
+        if isinstance(raw, str):
+            tools.append({"name": raw})
+        elif isinstance(raw, dict):
+            tools.append(raw)
+        else:
+            tools.append({"name": "", "raw_type": type(raw).__name__})
+    return tools
+
+
+def check_manifest(manifest: dict[str, Any], require_allowlist: bool = False) -> list[str]:
     issues: list[str] = []
-    allowed = set(manifest.get("allowed_tools", []))
-    for tool in manifest.get("tools", []):
+    allowed = {normalize_tool_name(tool) for tool in manifest.get("allowed_tools", [])}
+    allowed.discard("")
+    tools = iter_tools(manifest)
+    if require_allowlist and tools and not allowed:
+        issues.append("allowed_tools is required when tools are declared")
+    for tool in tools:
         name = str(tool.get("name", ""))
         if not name:
-            issues.append("tool entry is missing a name")
+            raw_type = tool.get("raw_type")
+            if raw_type:
+                issues.append(f"tool entry has unsupported type: {raw_type}")
+            else:
+                issues.append("tool entry is missing a name")
             continue
         if allowed and name not in allowed:
             issues.append(f"tool not on allowlist: {name}")
@@ -59,10 +87,15 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Check MCP-style manifests for unsafe grants.")
     parser.add_argument("--manifest", required=True, type=Path)
     parser.add_argument("--json", action="store_true", help="emit JSON instead of text")
+    parser.add_argument(
+        "--require-allowlist",
+        action="store_true",
+        help="flag manifests that declare tools without an allowed_tools list",
+    )
     args = parser.parse_args()
 
     manifest = load_manifest(args.manifest)
-    issues = check_manifest(manifest)
+    issues = check_manifest(manifest, require_allowlist=args.require_allowlist)
     if args.json:
         print(json.dumps({"server": manifest.get("server"), "issues": issues}, indent=2, ensure_ascii=False))
     else:

@@ -21,6 +21,13 @@ JSON and TOML manifests are supported:
 python main.py --manifest sample-manifest.toml
 ```
 
+Use strict mode when CI should reject manifests that declare tools but forget to declare an explicit allowlist:
+```bash
+python main.py --manifest sample-manifest.json --require-allowlist --json
+```
+
+Tool entries may be objects (`{"name": "read_file"}`) or compact strings (`"read_file"`), so the checker works with both verbose and minimal manifest styles.
+
 ## Example
 Input:
 ```json

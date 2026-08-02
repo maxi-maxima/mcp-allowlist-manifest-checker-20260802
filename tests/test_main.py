@@ -1,4 +1,6 @@
 import json
+import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -17,6 +19,16 @@ class TestManifestChecker(unittest.TestCase):
         }
         self.assertEqual(main.check_manifest(manifest), [])
 
+    def test_string_tools_are_supported(self):
+        manifest = {
+            "server": "demo",
+            "allowed_tools": ["read_file"],
+            "tools": ["read_file"],
+            "paths": [],
+            "network": False,
+        }
+        self.assertEqual(main.check_manifest(manifest), [])
+
     def test_unsafe_entries_are_reported(self):
         manifest = {
             "server": "demo",
@@ -30,6 +42,16 @@ class TestManifestChecker(unittest.TestCase):
         self.assertIn("unsafe tool requested: shell", issues)
         self.assertIn("unsafe path outside workspace: ../secrets", issues)
         self.assertIn("network access is enabled", issues)
+
+    def test_require_allowlist_flags_declared_tools_without_allowlist(self):
+        manifest = {"server": "demo", "tools": ["read_file"], "paths": []}
+        issues = main.check_manifest(manifest, require_allowlist=True)
+        self.assertIn("allowed_tools is required when tools are declared", issues)
+
+    def test_unsupported_tool_entry_type_is_reported(self):
+        manifest = {"server": "demo", "tools": [123], "paths": []}
+        issues = main.check_manifest(manifest)
+        self.assertIn("tool entry has unsupported type: int", issues)
 
     def test_cli_can_load_json(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -48,6 +70,26 @@ class TestManifestChecker(unittest.TestCase):
             manifest = main.load_manifest(path)
             self.assertEqual(manifest["server"], "demo")
             self.assertEqual(manifest["tools"][0]["name"], "read_file")
+
+    def test_cli_require_allowlist_returns_json_issues(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            manifest_path = Path(tmp) / "manifest.json"
+            manifest_path.write_text(json.dumps({"server": "demo", "tools": ["read_file"]}), encoding="utf-8")
+            completed = subprocess.run(
+                [
+                    sys.executable,
+                    str(Path(main.__file__)),
+                    "--manifest",
+                    str(manifest_path),
+                    "--json",
+                    "--require-allowlist",
+                ],
+                text=True,
+                capture_output=True,
+            )
+            self.assertEqual(completed.returncode, 1)
+            payload = json.loads(completed.stdout)
+            self.assertIn("allowed_tools is required when tools are declared", payload["issues"])
 
 
 if __name__ == "__main__":
