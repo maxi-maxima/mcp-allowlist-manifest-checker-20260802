@@ -16,6 +16,11 @@ No dependencies. Use Python 3.11+.
 python main.py --manifest sample-manifest.json
 ```
 
+JSON and TOML manifests are supported:
+```bash
+python main.py --manifest sample-manifest.toml
+```
+
 ## Example
 Input:
 ```json
@@ -42,6 +47,5 @@ python -m unittest discover -s tests -v
 ```
 
 ## Roadmap
-- Add TOML support for common agent config files
 - Export SARIF for CI gates
 - Add presets for common MCP clients

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import tomllib
 from pathlib import Path
 from typing import Any
 
@@ -9,7 +10,10 @@ UNSAFE_TOOL_NAMES = {"shell", "exec", "write", "delete", "network", "download"}
 
 
 def load_manifest(path: Path) -> dict[str, Any]:
-    return json.loads(path.read_text(encoding="utf-8"))
+    text = path.read_text(encoding="utf-8-sig")
+    if path.suffix.lower() == ".toml":
+        return tomllib.loads(text)
+    return json.loads(text)
 
 
 def path_is_safe(entry: str) -> bool:

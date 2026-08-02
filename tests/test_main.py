@@ -38,6 +38,17 @@ class TestManifestChecker(unittest.TestCase):
             manifest = main.load_manifest(path)
             self.assertEqual(manifest["server"], "demo")
 
+    def test_cli_can_load_toml(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "manifest.toml"
+            path.write_text(
+                '\ufeffserver = "demo"\nallowed_tools = ["read_file"]\nnetwork = false\n[[tools]]\nname = "read_file"\n',
+                encoding="utf-8",
+            )
+            manifest = main.load_manifest(path)
+            self.assertEqual(manifest["server"], "demo")
+            self.assertEqual(manifest["tools"][0]["name"], "read_file")
+
 
 if __name__ == "__main__":
     unittest.main()
