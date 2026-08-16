@@ -91,6 +91,33 @@ class TestManifestChecker(unittest.TestCase):
             payload = json.loads(completed.stdout)
             self.assertIn("allowed_tools is required when tools are declared", payload["issues"])
 
+    def test_sarif_output_contains_rules_and_results(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            manifest_path = Path(tmp) / "manifest.json"
+            manifest_path.write_text(
+                json.dumps({"server": "demo", "tools": ["shell"], "allowed_tools": ["read_file"]}),
+                encoding="utf-8",
+            )
+            completed = subprocess.run(
+                [
+                    sys.executable,
+                    str(Path(main.__file__)),
+                    "--manifest",
+                    str(manifest_path),
+                    "--format",
+                    "sarif",
+                ],
+                text=True,
+                capture_output=True,
+            )
+            self.assertEqual(completed.returncode, 1)
+            payload = json.loads(completed.stdout)
+            self.assertEqual(payload["version"], "2.1.0")
+            rule_ids = {rule["id"] for rule in payload["runs"][0]["tool"]["driver"]["rules"]}
+            self.assertIn("tool-not-on-allowlist", rule_ids)
+            self.assertIn("unsafe-tool", rule_ids)
+            self.assertEqual(payload["runs"][0]["results"][0]["locations"][0]["physicalLocation"]["region"]["startLine"], 1)
+
 
 if __name__ == "__main__":
     unittest.main()

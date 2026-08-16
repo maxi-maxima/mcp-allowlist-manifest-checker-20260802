@@ -83,10 +83,69 @@ def format_report(manifest: dict[str, Any], issues: list[str]) -> str:
     return "\n".join(lines)
 
 
+def rule_id_for_issue(issue: str) -> str:
+    if issue.startswith("tool not on allowlist"):
+        return "tool-not-on-allowlist"
+    if issue.startswith("unsafe tool requested"):
+        return "unsafe-tool"
+    if issue.startswith("dangerous tool flag"):
+        return "dangerous-tool-flag"
+    if issue.startswith("unsafe path outside workspace"):
+        return "unsafe-path"
+    if issue == "network access is enabled":
+        return "network-enabled"
+    if issue.startswith("allowed_tools is required"):
+        return "missing-allowlist"
+    if issue.startswith("tool entry"):
+        return "invalid-tool-entry"
+    return "manifest-policy-issue"
+
+
+def format_sarif(manifest_path: Path, manifest: dict[str, Any], issues: list[str]) -> dict[str, Any]:
+    rules = {}
+    results = []
+    for issue in issues:
+        rule_id = rule_id_for_issue(issue)
+        rules.setdefault(rule_id, {"id": rule_id, "shortDescription": {"text": rule_id.replace("-", " ")}})
+        results.append(
+            {
+                "ruleId": rule_id,
+                "level": "error",
+                "message": {"text": issue},
+                "locations": [
+                    {
+                        "physicalLocation": {
+                            "artifactLocation": {"uri": manifest_path.as_posix()},
+                            "region": {"startLine": 1},
+                        }
+                    }
+                ],
+            }
+        )
+    return {
+        "version": "2.1.0",
+        "$schema": "https://json.schemastore.org/sarif-2.1.0.json",
+        "runs": [
+            {
+                "tool": {
+                    "driver": {
+                        "name": "mcp-allowlist-manifest-checker",
+                        "informationUri": "https://github.com/maxi-maxima/mcp-allowlist-manifest-checker-20260802",
+                        "rules": list(rules.values()),
+                    }
+                },
+                "properties": {"server": manifest.get("server")},
+                "results": results,
+            }
+        ],
+    }
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Check MCP-style manifests for unsafe grants.")
     parser.add_argument("--manifest", required=True, type=Path)
     parser.add_argument("--json", action="store_true", help="emit JSON instead of text")
+    parser.add_argument("--format", choices=["text", "json", "sarif"], default="text", help="output format")
     parser.add_argument(
         "--require-allowlist",
         action="store_true",
@@ -96,8 +155,11 @@ def main() -> int:
 
     manifest = load_manifest(args.manifest)
     issues = check_manifest(manifest, require_allowlist=args.require_allowlist)
-    if args.json:
+    output_format = "json" if args.json else args.format
+    if output_format == "json":
         print(json.dumps({"server": manifest.get("server"), "issues": issues}, indent=2, ensure_ascii=False))
+    elif output_format == "sarif":
+        print(json.dumps(format_sarif(args.manifest, manifest, issues), indent=2, ensure_ascii=False))
     else:
         print(format_report(manifest, issues))
     return 1 if issues else 0

@@ -28,6 +28,11 @@ python main.py --manifest sample-manifest.json --require-allowlist --json
 
 Tool entries may be objects (`{"name": "read_file"}`) or compact strings (`"read_file"`), so the checker works with both verbose and minimal manifest styles.
 
+Export SARIF when a code-scanning or CI gate should annotate unsafe manifest grants:
+```bash
+python main.py --manifest sample-manifest.json --format sarif > results.sarif
+```
+
 ## Example
 Input:
 ```json
@@ -54,5 +59,4 @@ python -m unittest discover -s tests -v
 ```
 
 ## Roadmap
-- Export SARIF for CI gates
 - Add presets for common MCP clients

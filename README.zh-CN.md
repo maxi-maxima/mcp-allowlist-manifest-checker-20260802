@@ -28,6 +28,11 @@ python main.py --manifest sample-manifest.json --require-allowlist --json
 
 工具条目既可以写成对象（`{"name": "read_file"}`），也可以写成紧凑字符串（`"read_file"`），方便兼容不同风格的 manifest。
 
+当需要接入代码扫描或 CI 阻断时，可以导出 SARIF：
+```bash
+python main.py --manifest sample-manifest.json --format sarif > results.sarif
+```
+
 ## 示例
 输入：
 ```json
@@ -54,6 +59,4 @@ python -m unittest discover -s tests -v
 ```
 
 ## 路线图
-- 增加常见 agent 配置的 TOML 支持
-- 导出 SARIF 方便 CI 阻断
 - 增加主流 MCP 客户端预设
