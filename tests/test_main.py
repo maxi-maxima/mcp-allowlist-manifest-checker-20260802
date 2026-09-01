@@ -48,6 +48,16 @@ class TestManifestChecker(unittest.TestCase):
         issues = main.check_manifest(manifest, require_allowlist=True)
         self.assertIn("allowed_tools is required when tools are declared", issues)
 
+    def test_client_preset_requires_allowlist_and_rejects_wildcards(self):
+        manifest = {"server": "demo", "allowed_tools": ["*"], "tools": ["*"], "paths": []}
+        issues = main.check_manifest(manifest, preset="claude-desktop")
+        self.assertIn("wildcard allowlist entry is not allowed by claude-desktop preset: *", issues)
+        self.assertIn("wildcard tool grant is not allowed by claude-desktop preset: *", issues)
+
+        missing_allowlist = {"server": "demo", "tools": ["read_file"], "paths": []}
+        issues = main.check_manifest(missing_allowlist, preset="codex")
+        self.assertIn("allowed_tools is required when tools are declared", issues)
+
     def test_unsupported_tool_entry_type_is_reported(self):
         manifest = {"server": "demo", "tools": [123], "paths": []}
         issues = main.check_manifest(manifest)
@@ -117,6 +127,32 @@ class TestManifestChecker(unittest.TestCase):
             self.assertIn("tool-not-on-allowlist", rule_ids)
             self.assertIn("unsafe-tool", rule_ids)
             self.assertEqual(payload["runs"][0]["results"][0]["locations"][0]["physicalLocation"]["region"]["startLine"], 1)
+
+    def test_cli_preset_json_output(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            manifest_path = Path(tmp) / "manifest.json"
+            manifest_path.write_text(
+                json.dumps({"server": "demo", "allowed_tools": ["*"], "tools": ["*"]}),
+                encoding="utf-8",
+            )
+            completed = subprocess.run(
+                [
+                    sys.executable,
+                    str(Path(main.__file__)),
+                    "--manifest",
+                    str(manifest_path),
+                    "--preset",
+                    "cursor",
+                    "--format",
+                    "json",
+                ],
+                text=True,
+                capture_output=True,
+            )
+            self.assertEqual(completed.returncode, 1)
+            payload = json.loads(completed.stdout)
+            self.assertEqual(payload["preset"], "cursor")
+            self.assertIn("wildcard tool grant is not allowed by cursor preset: *", payload["issues"])
 
 
 if __name__ == "__main__":

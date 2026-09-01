@@ -7,6 +7,21 @@ from pathlib import Path
 from typing import Any
 
 UNSAFE_TOOL_NAMES = {"shell", "exec", "write", "delete", "network", "download"}
+WILDCARD_TOOL_NAMES = {"*", "all", "all_tools"}
+CLIENT_PRESETS = {
+    "claude-desktop": {
+        "require_allowlist": True,
+        "reject_wildcards": True,
+    },
+    "codex": {
+        "require_allowlist": True,
+        "reject_wildcards": True,
+    },
+    "cursor": {
+        "require_allowlist": True,
+        "reject_wildcards": True,
+    },
+}
 
 
 def load_manifest(path: Path) -> dict[str, Any]:
@@ -43,13 +58,20 @@ def iter_tools(manifest: dict[str, Any]) -> list[dict[str, Any]]:
     return tools
 
 
-def check_manifest(manifest: dict[str, Any], require_allowlist: bool = False) -> list[str]:
+def check_manifest(manifest: dict[str, Any], require_allowlist: bool = False, preset: str | None = None) -> list[str]:
     issues: list[str] = []
+    preset_config = CLIENT_PRESETS.get(preset or "", {})
+    effective_require_allowlist = require_allowlist or bool(preset_config.get("require_allowlist"))
+    reject_wildcards = bool(preset_config.get("reject_wildcards"))
     allowed = {normalize_tool_name(tool) for tool in manifest.get("allowed_tools", [])}
     allowed.discard("")
     tools = iter_tools(manifest)
-    if require_allowlist and tools and not allowed:
+    if effective_require_allowlist and tools and not allowed:
         issues.append("allowed_tools is required when tools are declared")
+    if reject_wildcards:
+        for name in sorted(allowed):
+            if name.lower() in WILDCARD_TOOL_NAMES:
+                issues.append(f"wildcard allowlist entry is not allowed by {preset} preset: {name}")
     for tool in tools:
         name = str(tool.get("name", ""))
         if not name:
@@ -63,6 +85,8 @@ def check_manifest(manifest: dict[str, Any], require_allowlist: bool = False) ->
             issues.append(f"tool not on allowlist: {name}")
         if name in UNSAFE_TOOL_NAMES:
             issues.append(f"unsafe tool requested: {name}")
+        if reject_wildcards and name.lower() in WILDCARD_TOOL_NAMES:
+            issues.append(f"wildcard tool grant is not allowed by {preset} preset: {name}")
         if tool.get("dangerous"):
             issues.append(f"dangerous tool flag enabled: {name}")
     for entry in manifest.get("paths", []):
@@ -98,6 +122,8 @@ def rule_id_for_issue(issue: str) -> str:
         return "missing-allowlist"
     if issue.startswith("tool entry"):
         return "invalid-tool-entry"
+    if issue.startswith("wildcard"):
+        return "wildcard-tool-grant"
     return "manifest-policy-issue"
 
 
@@ -147,6 +173,11 @@ def main() -> int:
     parser.add_argument("--json", action="store_true", help="emit JSON instead of text")
     parser.add_argument("--format", choices=["text", "json", "sarif"], default="text", help="output format")
     parser.add_argument(
+        "--preset",
+        choices=sorted(CLIENT_PRESETS),
+        help="apply a stricter policy preset for a common MCP client",
+    )
+    parser.add_argument(
         "--require-allowlist",
         action="store_true",
         help="flag manifests that declare tools without an allowed_tools list",
@@ -154,10 +185,13 @@ def main() -> int:
     args = parser.parse_args()
 
     manifest = load_manifest(args.manifest)
-    issues = check_manifest(manifest, require_allowlist=args.require_allowlist)
+    issues = check_manifest(manifest, require_allowlist=args.require_allowlist, preset=args.preset)
     output_format = "json" if args.json else args.format
     if output_format == "json":
-        print(json.dumps({"server": manifest.get("server"), "issues": issues}, indent=2, ensure_ascii=False))
+        payload = {"server": manifest.get("server"), "issues": issues}
+        if args.preset:
+            payload["preset"] = args.preset
+        print(json.dumps(payload, indent=2, ensure_ascii=False))
     elif output_format == "sarif":
         print(json.dumps(format_sarif(args.manifest, manifest, issues), indent=2, ensure_ascii=False))
     else:

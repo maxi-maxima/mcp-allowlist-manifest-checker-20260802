@@ -33,6 +33,13 @@ python main.py --manifest sample-manifest.json --require-allowlist --json
 python main.py --manifest sample-manifest.json --format sarif > results.sarif
 ```
 
+审查主流 MCP 客户端配置时，可以套用客户端预设：
+```bash
+python main.py --manifest sample-manifest.json --preset claude-desktop
+```
+
+当前预设包括 `claude-desktop`、`codex` 和 `cursor`。预设会要求显式 `allowed_tools`，并拒绝 `*`、`all`、`all_tools` 这类通配工具授权。
+
 ## 示例
 输入：
 ```json
@@ -59,4 +66,4 @@ python -m unittest discover -s tests -v
 ```
 
 ## 路线图
-- 增加主流 MCP 客户端预设
+- 增加逐工具授权理由字段，说明每个权限为什么存在

@@ -33,6 +33,13 @@ Export SARIF when a code-scanning or CI gate should annotate unsafe manifest gra
 python main.py --manifest sample-manifest.json --format sarif > results.sarif
 ```
 
+Apply a client preset when reviewing manifests for a common MCP client:
+```bash
+python main.py --manifest sample-manifest.json --preset claude-desktop
+```
+
+Available presets are `claude-desktop`, `codex`, and `cursor`. Presets require an explicit `allowed_tools` list and reject wildcard tool grants such as `*`, `all`, and `all_tools`.
+
 ## Example
 Input:
 ```json
@@ -59,4 +66,4 @@ python -m unittest discover -s tests -v
 ```
 
 ## Roadmap
-- Add presets for common MCP clients
+- Add per-tool reason fields to explain why a grant exists
