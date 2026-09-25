@@ -58,7 +58,12 @@ def iter_tools(manifest: dict[str, Any]) -> list[dict[str, Any]]:
     return tools
 
 
-def check_manifest(manifest: dict[str, Any], require_allowlist: bool = False, preset: str | None = None) -> list[str]:
+def check_manifest(
+    manifest: dict[str, Any],
+    require_allowlist: bool = False,
+    require_tool_reasons: bool = False,
+    preset: str | None = None,
+) -> list[str]:
     issues: list[str] = []
     preset_config = CLIENT_PRESETS.get(preset or "", {})
     effective_require_allowlist = require_allowlist or bool(preset_config.get("require_allowlist"))
@@ -87,6 +92,9 @@ def check_manifest(manifest: dict[str, Any], require_allowlist: bool = False, pr
             issues.append(f"unsafe tool requested: {name}")
         if reject_wildcards and name.lower() in WILDCARD_TOOL_NAMES:
             issues.append(f"wildcard tool grant is not allowed by {preset} preset: {name}")
+        reason = tool.get("reason")
+        if require_tool_reasons and (not isinstance(reason, str) or not reason.strip()):
+            issues.append(f"tool is missing a reason: {name}")
         if tool.get("dangerous"):
             issues.append(f"dangerous tool flag enabled: {name}")
     for entry in manifest.get("paths", []):
@@ -122,6 +130,8 @@ def rule_id_for_issue(issue: str) -> str:
         return "missing-allowlist"
     if issue.startswith("tool entry"):
         return "invalid-tool-entry"
+    if issue.startswith("tool is missing a reason"):
+        return "missing-tool-reason"
     if issue.startswith("wildcard"):
         return "wildcard-tool-grant"
     return "manifest-policy-issue"
@@ -182,10 +192,20 @@ def main() -> int:
         action="store_true",
         help="flag manifests that declare tools without an allowed_tools list",
     )
+    parser.add_argument(
+        "--require-tool-reasons",
+        action="store_true",
+        help="flag tool grants without a non-empty reason field",
+    )
     args = parser.parse_args()
 
     manifest = load_manifest(args.manifest)
-    issues = check_manifest(manifest, require_allowlist=args.require_allowlist, preset=args.preset)
+    issues = check_manifest(
+        manifest,
+        require_allowlist=args.require_allowlist,
+        require_tool_reasons=args.require_tool_reasons,
+        preset=args.preset,
+    )
     output_format = "json" if args.json else args.format
     if output_format == "json":
         payload = {"server": manifest.get("server"), "issues": issues}

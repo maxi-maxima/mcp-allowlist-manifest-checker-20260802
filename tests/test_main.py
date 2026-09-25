@@ -48,6 +48,22 @@ class TestManifestChecker(unittest.TestCase):
         issues = main.check_manifest(manifest, require_allowlist=True)
         self.assertIn("allowed_tools is required when tools are declared", issues)
 
+    def test_require_tool_reasons_flags_missing_and_blank_reasons(self):
+        manifest = {
+            "server": "demo",
+            "tools": [
+                {"name": "read_file", "reason": "Read project documentation"},
+                {"name": "list_files", "reason": "   "},
+                {"name": "write_file", "reason": 123},
+                "search",
+            ],
+        }
+        issues = main.check_manifest(manifest, require_tool_reasons=True)
+        self.assertNotIn("tool is missing a reason: read_file", issues)
+        self.assertIn("tool is missing a reason: list_files", issues)
+        self.assertIn("tool is missing a reason: write_file", issues)
+        self.assertIn("tool is missing a reason: search", issues)
+
     def test_client_preset_requires_allowlist_and_rejects_wildcards(self):
         manifest = {"server": "demo", "allowed_tools": ["*"], "tools": ["*"], "paths": []}
         issues = main.check_manifest(manifest, preset="claude-desktop")

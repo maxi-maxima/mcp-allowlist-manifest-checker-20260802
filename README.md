@@ -28,6 +28,13 @@ python main.py --manifest sample-manifest.json --require-allowlist --json
 
 Tool entries may be objects (`{"name": "read_file"}`) or compact strings (`"read_file"`), so the checker works with both verbose and minimal manifest styles.
 
+Require every tool grant to explain why it exists:
+```bash
+python main.py --manifest sample-manifest.json --require-tool-reasons
+```
+
+Use object entries such as `{"name": "read_file", "reason": "Read project documentation"}`. Compact string entries are reported as missing a reason when this policy is enabled.
+
 Export SARIF when a code-scanning or CI gate should annotate unsafe manifest grants:
 ```bash
 python main.py --manifest sample-manifest.json --format sarif > results.sarif
@@ -64,6 +71,3 @@ Output:
 ```bash
 python -m unittest discover -s tests -v
 ```
-
-## Roadmap
-- Add per-tool reason fields to explain why a grant exists

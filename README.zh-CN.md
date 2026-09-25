@@ -28,6 +28,13 @@ python main.py --manifest sample-manifest.json --require-allowlist --json
 
 工具条目既可以写成对象（`{"name": "read_file"}`），也可以写成紧凑字符串（`"read_file"`），方便兼容不同风格的 manifest。
 
+需要每个工具授权说明用途时，可开启理由校验：
+```bash
+python main.py --manifest sample-manifest.json --require-tool-reasons
+```
+
+对象条目可写成 `{"name": "read_file", "reason": "读取项目文档"}`。启用该策略后，字符串简写会被报告为缺少理由。
+
 当需要接入代码扫描或 CI 阻断时，可以导出 SARIF：
 ```bash
 python main.py --manifest sample-manifest.json --format sarif > results.sarif
@@ -64,6 +71,3 @@ python main.py --manifest sample-manifest.json --preset claude-desktop
 ```bash
 python -m unittest discover -s tests -v
 ```
-
-## 路线图
-- 增加逐工具授权理由字段，说明每个权限为什么存在
